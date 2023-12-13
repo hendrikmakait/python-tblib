@@ -24,14 +24,14 @@ def pickle_traceback(tb, *, get_locals=None):
 
 # Note: Older versions of tblib will generate pickle archives that call unpickle_exception() with
 # fewer arguments. We assign default values to some of the arguments to support this.
-def unpickle_exception(func, args, cause, tb, context=None, suppress_context=False, notes=None):
+def unpickle_exception(func, args, cause, tb):
     inst = func(*args)
     inst.__cause__ = cause
     inst.__traceback__ = tb
-    inst.__context__ = context
-    inst.__suppress_context__ = suppress_context
-    if notes is not None:
-        inst.__notes__ = notes
+    # inst.__context__ = context
+    # inst.__suppress_context__ = suppress_context
+    # if notes is not None:
+        # inst.__notes__ = notes
     return inst
 
 
@@ -55,10 +55,10 @@ def pickle_exception(obj):
         + (
             obj.__cause__,
             obj.__traceback__,
-            obj.__context__,
-            obj.__suppress_context__,
+            # obj.__context__,
+            # obj.__suppress_context__,
             # __notes__ doesn't exist prior to Python 3.11; and even on Python 3.11 it may be absent
-            getattr(obj, '__notes__', None),
+            # getattr(obj, '__notes__', None),
         ),
     ) + rv[2:]
 
