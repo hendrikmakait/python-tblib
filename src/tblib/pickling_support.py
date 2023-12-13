@@ -55,7 +55,7 @@ def pickle_exception(obj):
         + (
             obj.__cause__,
             obj.__traceback__,
-            obj.__context__,
+            None, # obj.__context__,
             False, #obj.__suppress_context__,
             # __notes__ doesn't exist prior to Python 3.11; and even on Python 3.11 it may be absent
             None, # getattr(obj, '__notes__', None),
