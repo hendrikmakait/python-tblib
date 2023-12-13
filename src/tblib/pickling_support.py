@@ -85,9 +85,11 @@ def install(*exc_classes_or_instances, get_locals=None):
             copyreg.pickle(exception_cls, pickle_exception)
         return
 
+    instances = []
     for exc in exc_classes_or_instances:
         if isinstance(exc, BaseException):
-            _install_for_instance(exc, set())
+            instances.append(exc)
+            # _install_for_instance(exc, set())
         elif isinstance(exc, type) and issubclass(exc, BaseException):
             copyreg.pickle(exc, pickle_exception)
             # Allow using @install as a decorator for Exception classes
@@ -96,27 +98,28 @@ def install(*exc_classes_or_instances, get_locals=None):
         else:
             raise TypeError('Expected subclasses or instances of BaseException, got %s' % (type(exc)))
 
+    seen = set()
+    while instances:
+        exc = instances.pop()
+        assert isinstance(exc, BaseException)
 
-def _install_for_instance(exc, seen):
-    assert isinstance(exc, BaseException)
+        # Prevent infinite recursion if we somehow get a self-referential exception. (Self-referential
+        # exceptions should never normally happen, but if it did somehow happen, we want to pickle the
+        # exception faithfully so the developer can troubleshoot why it happened.)
+        if id(exc) in seen:
+            continue
+        seen.add(id(exc))
 
-    # Prevent infinite recursion if we somehow get a self-referential exception. (Self-referential
-    # exceptions should never normally happen, but if it did somehow happen, we want to pickle the
-    # exception faithfully so the developer can troubleshoot why it happened.)
-    if id(exc) in seen:
-        return
-    seen.add(id(exc))
+        copyreg.pickle(type(exc), pickle_exception)
 
-    copyreg.pickle(type(exc), pickle_exception)
+        if exc.__cause__ is not None:
+            instances.append(exc.__cause__)
+        if exc.__context__ is not None:
+            instances.append(exc.__context__)
 
-    if exc.__cause__ is not None:
-        _install_for_instance(exc.__cause__, seen)
-    if exc.__context__ is not None:
-        _install_for_instance(exc.__context__, seen)
-
-    # This case is meant to cover BaseExceptionGroup on Python 3.11 as well as backports like the
-    # exceptiongroup module
-    if hasattr(exc, 'exceptions') and isinstance(exc.exceptions, (tuple, list)):
-        for subexc in exc.exceptions:
-            if isinstance(subexc, BaseException):
-                _install_for_instance(subexc, seen)
+        # This case is meant to cover BaseExceptionGroup on Python 3.11 as well as backports like the
+        # exceptiongroup module
+        if hasattr(exc, 'exceptions') and isinstance(exc.exceptions, (tuple, list)):
+            for subexc in exc.exceptions:
+                if isinstance(subexc, BaseException):
+                    instances.append(subexc)
